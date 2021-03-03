@@ -104,27 +104,55 @@ DispatcherServlet的作用是将请求分发到不同的处理器。从Spring 2.
 
 ### 运行原理
 
-```xml
-<!--1.注册DispatcherServlet-->
-    <servlet>
-        <servlet-name>springmvc</servlet-name>
-        <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
-        <!--关联一个springmvc的配置文件:【servlet-name】-servlet.xml-->
-        <init-param>
-            <param-name>contextConfigLocation</param-name>
-            <param-value>classpath:springmvc-servlet.xml</param-value>
-        </init-param>
-        <!--启动级别-1-->
-        <load-on-startup>1</load-on-startup>
-    </servlet>
+![](./配图/springMVC执行流程.png)
 
-    <!--/ 匹配所有的请求；（不包括.jsp）-->
-    <!--/* 匹配所有的请求；（包括.jsp）-->
-    <servlet-mapping>
-        <servlet-name>springmvc</servlet-name>
-        <url-pattern>/</url-pattern>
-    </servlet-mapping>
+![](./配图/流程.png)
+
+### 执行流程
+
+1. 用户提交请求，该请求会先到达DispatcherServlet
+   - 假设请求的url为 : http : //localhost:8080/SpringMVC/hello，
+     - http : //localhost:8080服务器域名
+     - SpringMVC部署在服务器上的web站点
+     - hello表示控制器
+2. DispatcherServlet会把用户提供的url给到HandlerMapping处，通过HandlerExecution部分得出控制器为hello，并将结果返还给DispatcherServlet
+3. DispatcherServlet把得到的控制器交给HandlerAdapter，HandlerAdapter则是根据配置，找到对应的控制器Controller
+4. Controller执行业务逻辑，返回ModelAndView，即数据和视图，给DispatcherServlet
+5. DispatcherServlet调用视图解析器(ViewResolver)来解析HandlerAdapter传递的ModelAndView，视图解析器就能解析要呈现给用户的网页或者结果
+6. DispatcherServlet根据视图解析器解析的视图结果，调用具体的视图。最终视图呈现给用户。
+
+### 入门操作
+
+#### 实现Controller接口
+
+- web.xml文件中配置 DispatcherServlet。
+
+```xml
+<!--配置DispatchServlet-->
+<servlet>
+    <servlet-name>springmvc</servlet-name>
+    <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+    <!--要绑定spring配置文件-->
+    <init-param>
+        <param-name>contextConfigLocation</param-name>
+        <param-value>classpath:springmvc-servlet.xml</param-value>  
+    </init-param>
+    <!--启动级别-->
+    <load-on-startup>1</load-on-startup>
+</servlet>
+<servlet-mapping>
+    <servlet-name>springmvc</servlet-name>
+    <!--
+        / 只匹配所有请求，不会匹配jsp
+        /* 匹配所有请求，会匹配jsp
+        -->
+    <url-pattern>/</url-pattern>
+</servlet-mapping>
 ```
+
+- 根据web.xml文件中的 <param-value>classpath:springmvc-servlet.xml</param-value> ，创建同名的spring配置文件
+  - 在该配置文件中负责三件事：配置HandlerMapping、HandlerAdapter、ResourceViewResolver
+  - 同时设置好控制器对应的Controller类，如最后一行
 
 ```xml
 <!--这是标准spring配置文件-->
@@ -150,3 +178,106 @@ DispatcherServlet的作用是将请求分发到不同的处理器。从Spring 2.
 <bean id="/hello" class="HelloController"/>
 ```
 
+- 编写Controller类：**继承Controller接口**
+  - 该类返回一个ModelAndView对象，该对象存放着数据和即将跳转的视图；
+
+```Java
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.Controller;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+/**
+ * @author ChenZT
+ */
+public class HelloController implements Controller {
+    public ModelAndView handleRequest(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) throws Exception {
+        ModelAndView mv = new ModelAndView();
+        // 业务代码
+        String result = "HelloSpringMVC";
+        mv.addObject("msg",result);
+        // 视图跳转
+        mv.setViewName("hello");
+        return mv;
+    }
+}
+```
+
+#### 注解@Controller
+
+- web.xml文件中配置 DispatcherServlet。
+- 同名的spring配置文件，
+  - 开启注解扫描。：<context:component-scan base-package="扫描的包目录"/>
+  - <mvc:annotation-driven /> ：这行代码帮我们完成了HandlerMapping和HandlerAdapter的注册  
+    - 支持mvc注解驱动，在spring中一般采用@RequestMapping注解来完成映射关系
+    - 要想使@RequestMapping注解生效，必须向上下文中注册DefaultAnnotationHandlerMapping和AnnotationMethodHandlerAdapter实例。
+    - 这两个实例分别在类级别和方法级别处理。而annotation-driven配置帮助我们自动完成上述两个实例的注入。
+  - <mvc:default-servlet-handler /> ：忽略静态资源
+  - 手动注册视图解析器
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context
+       https://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/mvc
+       https://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+    <!--启动Spring注解扫描,让指定包下的注解生效-->
+    <context:component-scan base-package="com"/>
+    <!-- 让Spring MVC不处理静态资源 -->
+    <mvc:default-servlet-handler />
+    <mvc:annotation-driven />
+
+    <!-- 必须做的:视图解析器 -->
+    <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver"
+          id="internalResourceViewResolver">
+        <!-- 前缀 -->
+        <property name="prefix" value="/WEB-INF/views/" />
+        <!-- 后缀 -->
+        <property name="suffix" value=".jsp" />
+    </bean>
+</beans>
+```
+
+- 编写Controller类：**使用注解@Controller** 
+  - 访问地址：项目名/h1
+  - 如果在@RequestMapping作用在类上，那么要在控制器前面加上Controller类的路径：项目名/hello/h1
+
+```java
+package com;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+
+/**
+ * @author ChenZT
+ */
+
+// @RestController 返回的就是字符串,作为前后端分离的工具
+@Controller  // 注解标记
+@RequestMapping("/hello") // 路径标记
+public class HelloController{
+	
+    @RequestMapping("/h1") // 控制器标记
+    public String sayHello(Model model){
+        // 在模型中添加属性
+        model.addAttribute("msg", "hello,SpringMVC");
+        // 返回值:视图名称
+        return "hello";
+    }
+}
+```
+
+#### 不同点
+
+- 通过继承Controller接口来实现，一个类只能实现一种方法。并且还需要在配置文件中注册相应的bean对象——麻烦
+- 注解@Controller可以让一个类实现多种方法——简便
