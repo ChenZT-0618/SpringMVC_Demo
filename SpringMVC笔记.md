@@ -121,7 +121,7 @@ DispatcherServlet的作用是将请求分发到不同的处理器。从Spring 2.
 5. DispatcherServlet调用视图解析器(ViewResolver)来解析HandlerAdapter传递的ModelAndView，视图解析器就能解析要呈现给用户的网页或者结果
 6. DispatcherServlet根据视图解析器解析的视图结果，调用具体的视图。最终视图呈现给用户。
 
-### 入门操作
+### 基本操作
 
 #### 实现Controller接口
 
@@ -281,3 +281,143 @@ public class HelloController{
 
 - 通过继承Controller接口来实现，一个类只能实现一种方法。并且还需要在配置文件中注册相应的bean对象——麻烦
 - 注解@Controller可以让一个类实现多种方法——简便
+
+### @RequestMapping
+
+SpringMVC使用@RequestMapping 注解为控制器指定可以处哪些 URL请求，
+
+也可以说根据URL将数据送到指定的方法上实现。
+
+可以修饰**方法和类**
+
+- 修饰类：提供初步的请求映射信息。相对于WEB应用的根目录
+- 修饰方法：提供进一步的细分映射信息。
+- 若方法上的RequestMapping的路径写为：“/hello/h1”，与上面的代码同理。
+
+#### 请求参数
+
+- 请求URL：value，访问该方法或类的路径
+- 请求方法：method，不同的请求方式，有POST，DELETE，PUT，GET等，分别对应增删改查。剩下的看RequestMethod类
+- 请求参数：params，就是URL中问号后面跟的部分：/testParamsAndHeaders?**username=123&age=10**
+  - 添加了这个参数，说明URL中必须带有对应的参数，同时可以进行简单的等于或不等于判断。
+  - 若参数有2个以上，则必须同时满足才能匹配到
+- 请求头：headers，同params同理
+  - 请求头参数：在浏览器中Request Headers查看
+
+```Java
+@Controller
+public class RequestMappingParam {
+    private final static String SUCCESS = "success";
+
+    @RequestMapping(value = "/testMethod",method = RequestMethod.GET)
+    public String testMethod(Model model){
+        model.addAttribute("msg","GetMethod");
+        return SUCCESS;
+    }
+
+    // URL:***/testParamsAndHeaders?username=123&age=10
+    // 如果代码为：params = {"username","age=11"}，而URL为：?username=123&age=10则报错：
+    // Parameter conditions "username, age=11" not met for actual request parameters: username={123}, age={12}
+    @RequestMapping(value = "/testParamsAndHeaders",params = {"username=abc","age!=11"})
+    public String testParamsAndHeaders(Model model) {
+        model.addAttribute("msg","testParamsAndHeaders");
+        return SUCCESS;
+    }
+}
+```
+
+### @RequestParam
+
+与@RequestMapping不同，@RequestParam是写用来修饰参数的，可以将URL中的形参映射到形参中，便可对其进行操作
+
+```Java
+@RequestMapping(value = "/testRequestParam")
+public String testRequestParam(Model model ,@RequestParam("username") String username,@RequestParam("age") int age) {
+    model.addAttribute("msg","姓名:"+username+",年龄:"+age);
+    return SUCCESS;
+}
+```
+
+#### 参数
+
+- String value() 或者 String name() ：URL对应的参数名，二者选一个就行
+- boolean required()：是否必须，默认是true
+- String defaultValue()：参数默认值，如果URL没有携带值的话，就默认该值
+
+**@RequestHeader **同理
+
+### 支持Ant匹配字符
+
+- ? ：匹配文件名中一个字符
+- *： 匹配文件名中任意字符
+- \*\*:*\*  匹配多层路径
+
+![](./配图/匹配.png)
+
+```Java
+// 可在 /testAntPath/*/abc 之间添加任意数量字符，都可以匹配到
+@RequestMapping("/testAntPath/*/abc")
+public String testAntPath() {
+    System.out.println("testAntPath");
+    return SUCCESS;
+}
+```
+
+### RestFul风格
+
+如果使用@RequestMapping或@RequestParam，URL会显得比较复杂或冗长，且不可重用。所以就有接下来的**RestFul风格**和**@PathVariable**注解。
+
+Restful就是一个**资源定位及资源操作的风格**。不是标准也不是协议，只是一种风格。基于这个风格设计的软件可以更简洁，更有层次，更易于实现缓存等机制。
+
+传统的不同的资源操作需要不同的URL，如：
+
+- http: //127.0.0.1/item/queryItem.action?id=1  查询，GET
+- http: //127.0.0.1/item/saveItem.action              新增，POST
+
+使用RESTful,
+
+- http: //127.0.0.1/item/1         查询--GET
+- http: //127.0.0.1/item             新增--POST
+
+并且对用一个地址，也可以通过不同的请求方式来实现不同的效果，在@RequestMapping中通过method参数指定
+
+- http: //127.0.0.1/item             新增，POST
+
+- http: //127.0.0.1/item             更新，PUT
+
+**优点**
+
+- 使路径变得更加简洁；
+- 获得参数更加方便，框架会自动进行类型转换。
+- 通过路径变量的类型可以约束访问参数，如果类型不一样，则访问不到对应的请求方法
+
+#### @PathVariable 
+
+可以映射URL绑定的占位符，在REST风格有重大作用，
+
+通过@PathVariable 可以将URL中占位参数绑定到控制器处理方法的入参中
+
+#### 参数：
+
+- String value()  或 String name() ：跟URL中的占位符对应
+
+- 
+  boolean required() default true ：是否必须
+
+```Java
+@Controller
+public class PathVariableTest {
+    private final static String SUCCESS = "success";
+
+    // URL:.../testPathVariable/13/24
+    // 输出为：24+13,结果为：37
+    @RequestMapping("/testPathVariable/{p1}/{p2}")
+    public String testPathVariable(Model model, @PathVariable(value = "p2") Integer p1,@PathVariable(value = "p1") Integer p2){
+        int result = p1+p2;
+        model.addAttribute("msg",p1+"+"+p2+ ","+"结果为："+result);
+        return SUCCESS;
+    }
+}
+```
+
+使用restful风格实现，POST，DELETE，PUT，GET操作
