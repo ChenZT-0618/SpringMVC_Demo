@@ -294,14 +294,34 @@ SpringMVC使用@RequestMapping 注解为控制器指定可以处哪些 URL请求
 - 修饰方法：提供进一步的细分映射信息。
 - 若方法上的RequestMapping的路径写为：“/hello/h1”，与上面的代码同理。
 
-#### 请求参数
+**参数**
 
 - 请求URL：value，访问该方法或类的路径
+
+  - 支持Ant匹配字符：
+    - ? ：匹配文件名中一个字符
+    - *： 匹配文件名中任意字符
+    - \*\*:*\*  匹配多层路径
+
+  <img src="./配图/匹配.png" style="zoom: 67%;" />
+
+  ```java
+  // 可在 /testAntPath/*/abc 之间添加任意数量字符，都可以匹配到
+  @RequestMapping("/testAntPath/*/abc")
+  public String testAntPath() {
+      System.out.println("testAntPath");
+      return SUCCESS;
+  }
+  ```
+
 - 请求方法：method，不同的请求方式，有POST，DELETE，PUT，GET等，分别对应增删改查。剩下的看RequestMethod类
+
 - 请求参数：params，就是URL中问号后面跟的部分：/testParamsAndHeaders?**username=123&age=10**
   - 添加了这个参数，说明URL中必须带有对应的参数，同时可以进行简单的等于或不等于判断。
   - 若参数有2个以上，则必须同时满足才能匹配到
+  
 - 请求头：headers，同params同理
+  
   - 请求头参数：在浏览器中Request Headers查看
 
 ```Java
@@ -328,17 +348,37 @@ public class RequestMappingParam {
 
 ### @RequestParam
 
-与@RequestMapping不同，@RequestParam是写用来修饰参数的，可以将URL中的形参映射到形参中，便可对其进行操作
+在springMVC中处理提交数据有以下几种情况
 
-```Java
-@RequestMapping(value = "/testRequestParam")
-public String testRequestParam(Model model ,@RequestParam("username") String username,@RequestParam("age") int age) {
-    model.addAttribute("msg","姓名:"+username+",年龄:"+age);
-    return SUCCESS;
-}
-```
+- 提交的域名称和处理方法的参数名一致 —— springMVC会直接映射
 
-#### 参数
+  ```java
+  // URI : http://localhost:8080/hello?name=kuangshen
+  @RequestMapping("/hello")
+  public String hello(String name){
+     System.out.println(name);
+     return "hello";
+  }
+  ```
+
+- 提交的域名称和处理方法的参数名不一致 —— 使用@RequestParam
+
+  - 与@RequestMapping不同，@RequestParam是写用来修饰参数的
+
+  ```java
+  // URI : http://localhost:8080/hello?username=kuangshen
+  @RequestMapping(value = "/testRequestParam")
+  public String testRequestParam(Model model ,@RequestParam("username") String name) {
+      model.addAttribute("msg","姓名:" + name);
+      return SUCCESS;
+  }
+  ```
+
+@RequestParam 要求 前端传回来的URI 必须包含@RequestParam对应的参数名，但是可以不用跟handler方法中的形参的名字相同
+
+如果没有添加@RequestParam，那么需要形参名和参数名相同，才能匹配上
+
+**参数**
 
 - String value() 或者 String name() ：URL对应的参数名，二者选一个就行
 - boolean required()：是否必须，默认是true
@@ -346,22 +386,74 @@ public String testRequestParam(Model model ,@RequestParam("username") String use
 
 **@RequestHeader **同理
 
-### 支持Ant匹配字符
+### 接受参数
 
-- ? ：匹配文件名中一个字符
-- *： 匹配文件名中任意字符
-- \*\*:*\*  匹配多层路径
+#### POJO
 
-![](./配图/匹配.png)
+SpringMVC 会按 请求参数名 和 POJO 属性名 进行自动匹配，自动为该对象填充属性值。支持级联属性
 
-```Java
-// 可在 /testAntPath/*/abc 之间添加任意数量字符，都可以匹配到
-@RequestMapping("/testAntPath/*/abc")
-public String testAntPath() {
-    System.out.println("testAntPath");
-    return SUCCESS;
+- 实体类
+
+  ```java
+  public class User {
+     private int id;
+     private String name;
+     private int age;
+     //构造
+     //get/set
+     //tostring()java
+  }
+  ```
+
+- 提交数据 : http: //localhost:8080/mvc04/user?name=kuangshen&id=1&age=15
+
+- 处理方法 ：
+
+  ```java
+  @RequestMapping("/user")
+  public String user(User user){
+     System.out.println(user);
+     return "hello";
+  }
+  ```
+
+- 后台输出 : User { id=1, name='kuangshen', age=15 }
+
+- **说明**：如果使用对象的话，前端传递的参数名和对象名必须一致，否则就是null。
+
+#### Servlet API
+
+通过设置ServletAPI , 不需要视图解析器 .
+
+1、通过HttpServletResponse进行输出
+
+2、通过HttpServletResponse实现重定向
+
+3、通过HttpServletResponse实现转发
+
+```java
+@Controller
+public class ResultGo {
+  @RequestMapping("/result/t1")
+  public void test1(HttpServletRequest req, HttpServletResponse rsp) throws IOException {
+       rsp.getWriter().println("Hello,Spring BY servlet API");
+  }
+
+  @RequestMapping("/result/t2")
+  public void test2(HttpServletRequest req, HttpServletResponse rsp) throws IOException {
+       rsp.sendRedirect("/index.jsp");
+  }
+
+  @RequestMapping("/result/t3")
+  public void test3(HttpServletRequest req, HttpServletResponse rsp) throws Exception {
+       //转发
+       req.setAttribute("msg","/result/t3");
+       req.getRequestDispatcher("/WEB-INF/jsp/test.jsp").forward(req,rsp);
+  }
 }
 ```
+
+
 
 ### RestFul风格
 
@@ -397,7 +489,7 @@ Restful就是一个**资源定位及资源操作的风格**。不是标准也不
 
 通过@PathVariable 可以将URL中占位参数绑定到控制器处理方法的入参中
 
-#### 参数：
+**参数：**
 
 - String value()  或 String name() ：跟URL中的占位符对应
 
@@ -420,4 +512,185 @@ public class PathVariableTest {
 }
 ```
 
+#### Restful实现CRUD
+
 使用restful风格实现，POST，DELETE，PUT，GET操作
+
+##### 添加操作
+
+- URI：emp
+- 请求方法：POST—— 表单
+
+- 页面使用springMVC的表单标签，理由如下
+  - 更快速的开发表单页面
+  - 更方便的进行表单值的回显
+
+添加操作分为两部分：
+
+1. 添加页面的显示——使用springMVC的表单标签
+
+   ```html
+   <form:form action="${pageContext.request.contextPath}/emp" method="POST" modelAttribute="employee">
+       <%--path对应html的name属性--%>
+       LastName:<form:input path="lastName"/>
+       <br>
+       Email:<form:input path="email"/>
+       <br>
+       <%
+           Map<String,String> genders = new HashMap<>();
+           genders.put("1","male");
+           genders.put("0","female");
+           request.setAttribute("genders",genders);
+       %>
+       Gender:<form:radiobuttons path="gender" items="${genders}"/>
+       <br>
+       Department:<form:select path="department.id" items="${departments}" itemLabel="departmentName" itemValue="id"/>
+       <br>
+       <input type="submit" value="Submit"/>
+   </form:form>
+   ```
+
+2. 表单提交请求
+
+   - 提交路径前面需要添加项目名： action="${pageContext.request.contextPath}/emp"
+
+注意：
+
+- 需要通过 modelAttribute 属性指定绑定的模型属性，若没有指定该属性，则默认从 request 域对象中读取 command 的表单 bean。如果该属性值也不存在，则会发生错误。
+  - 每个<form: ... > 标签里面的path属性都是对应着modelAttribute 绑定的模型的成员名
+  - 例如employee中的成员为id、lastName、email、gender、department，而department类下有id和departmentName两个属性，所以可以用 path="department.id" 表示
+- 关于employeeDao的代码中：
+  - employee.setDepartment(departmentDao.getDepartment(employee.getDepartment().getId()));
+  - 需要写这段代码的原因应该在于表单传递的只是department的ID属性，而不是department对象。需要通过该属性去创建一个department对象，存放到employee中
+
+**问题：**
+
+HTTP状态 400 - 错误的请求
+
+- 由于被认为是客户端对错误（例如：畸形的请求语法、无效的请求信息帧或者虚拟的请求路由），服务器无法或不会处理当前请求。
+
+- Field error in object 'employee' on field 'department' rejected value [101]; codes [typeMismatch.employee.department
+  - 简单来说就是表单中传递的值是department.id，而employee接受的是department对象，匹配不上，出错。
+
+**原因：**
+
+- department类中没有无参构造，无法创造对象
+
+##### 删除操作
+
+- URI：emp/{id}
+
+- 请求方法：DELETE
+
+- 难点在页面上：如何将超链接的GET请求转换为DELETE请求
+
+  - 用JS把超链接绑定一个表单的POST请求
+
+  ```html
+  <script src="webjars/jquery/3.6.0/jquery.min.js"></script>
+  <script>
+      $(function () {
+          $(".delete").click(function () {
+              var href = $(this).attr("href");
+              $("form").attr("action",href).submit();
+              return false;
+          })
+      })
+  </script>
+  ```
+
+  - 然后用HiddenHttpMethodFilter去修改为DELETE请求
+
+    - HiddenHttpMethodFilter能将POST请求转为DELETE请求，所以需要有个表单来提供POST请求。
+
+    ```xml
+    <filter>
+    	<filter-name>HiddenHttpMethodFilter</filter-name>
+    	<filter-class>org.springframework.web.filter.HiddenHttpMethodFilter</filter-class>
+    </filter>
+    <filter-mapping>
+    	<filter-name>HiddenHttpMethodFilter</filter-name>
+    	<url-pattern>/*</url-pattern>
+    </filter-mapping>
+    ```
+
+- handler部分
+
+  ```java
+  @RequestMapping(value = "/emp/{id}",method = RequestMethod.DELETE)
+  public String delete(@PathVariable("id") Integer id){
+      employeeDao.delete(id);
+      return "redirect:/emps";
+  }
+  ```
+
+问题：
+
+- HTTP状态 405 - 方法不允许
+  - HiddenHttpMethodFilter的url路径没有加个*号
+
+**注意点**
+
+- jQuery的引用方式
+
+##### 修改操作
+
+- 点击修改请求
+
+  - URI：emp/{id} —— list.jsp中相关部分的代码： \<a href="emp/${emp.id}">Edit\</a>
+  - 请求方式：GET—— 超链接对应的请求方式就是GET
+  - **问题**：因为springmvc-servlet配置文件中  "/WEB-INF/views/" 前面没有加斜杠，导致一直出现 “文件[/emp/WEB-INF/views/input.jsp] 未找到” 问题
+
+  ```java
+  @RequestMapping(value = "/emp/{id}",method = RequestMethod.GET)
+  public String input(@PathVariable("id") Integer id, Model model){
+      model.addAttribute("employee",employeeDao.get(id));
+      model.addAttribute("departments",departmentDao.getDepartments());
+      return "input";
+  }
+  ```
+
+- 显示修改页面：表单回显
+
+  - 页面大部分与input.jsp一样，不同点在于LastName的显示：
+    - 如果id为空，则为添加页面，显示LastName的输入行
+    - 如果id不为空，为修改页面，要将提交请求改为PUT
+
+  ```html
+  <form:form action="${pageContext.request.contextPath}/emp" method="POST" modelAttribute="employee">
+      <%--path对应html的name属性--%>
+      <c:if test="${employee.id == null}">
+          LastName:<form:input path="lastName"/>
+          <br>
+      </c:if>
+      <c:if test="${employee.id != null}">
+          <form:hidden path="id"/> // 找个地方放id
+          <input type="hidden" name="_method" value="PUT">
+      </c:if>
+      ...
+  </form:form>
+  ```
+
+- 修改员工信息
+
+  - URI：emp，请求方式：PUT
+  - 显示效果：重定向回list页面
+    - 因为重定向之后会有不显示lastName的问题，所以要有@ModelAttribute这部分代码
+
+  ```java
+  @ModelAttribute
+  public void getEmployee(@RequestParam(value = "id",required = false) Integer id,Model model){
+      if (id!=null){
+          model.addAttribute("employee",employeeDao.get(id));
+      }
+  }
+  
+  @RequestMapping(value = "/emp",method = RequestMethod.PUT)
+  public String update(Employee employee){
+      employeeDao.save(employee);
+      return "redirect:/emps";
+  }
+  ```
+
+  
+

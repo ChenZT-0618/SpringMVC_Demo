@@ -13,6 +13,7 @@
         <module>02-HelloMVC</module>
         <module>03-annotation</module>
         <module>04-RequestMapping</module>
+        <module>05-RestFul_CRUD</module>
     </modules>
 
     <dependencies>
@@ -42,6 +43,12 @@
             <artifactId>jstl</artifactId>
             <version>1.2</version>
         </dependency>
+        <dependency>
+            <groupId>org.webjars</groupId>
+            <artifactId>jquery</artifactId>
+            <version>3.6.0</version>
+        </dependency>
+
     </dependencies>
 
 
