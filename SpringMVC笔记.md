@@ -85,7 +85,7 @@ Spring MVC是Spring Framework的一部分，是基于Java实现MVC的轻量级We
 
 文档：https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#spring-web
 
-### 特点：
+#### 特点
 
 1. 轻量级，简单易学
 2. 高效 , 基于请求响应的MVC框架
@@ -94,7 +94,7 @@ Spring MVC是Spring Framework的一部分，是基于Java实现MVC的轻量级We
 5. 功能强大：RESTful、数据验证、格式化、本地化、主题等
 6. 简洁灵活
 
-Spring的web框架围绕**DispatcherServlet** [ 调度Servlet ] 设计。
+Spring的web框架围绕 **DispatcherServlet** [ 调度Servlet ] 设计。
 
 DispatcherServlet的作用是将请求分发到不同的处理器。从Spring 2.5开始，使用Java 5或者以上版本的用户可以采用基于注解形式进行开发，十分简洁；
 
@@ -102,13 +102,13 @@ DispatcherServlet的作用是将请求分发到不同的处理器。从Spring 2.
 
 正因为SpringMVC好 , 简单 , 便捷 , 易学 , 天生和Spring无缝集成(使用SpringIoC和Aop) , 使用约定优于配置 . 能够进行简单的junit测试 . 支持Restful风格 .异常处理 , 本地化 , 国际化 , 数据验证 , 类型转换 , 拦截器 等等......所以我们要学习 .
 
-### 运行原理
+#### 运行原理
 
 ![](./配图/springMVC执行流程.png)
 
-![](./配图/流程.png)
+<img src="./配图/流程.png" style="zoom: 67%;" />
 
-### 执行流程
+#### 执行流程
 
 1. 用户提交请求，该请求会先到达DispatcherServlet
    - 假设请求的url为 : http : //localhost:8080/SpringMVC/hello，
@@ -150,7 +150,7 @@ DispatcherServlet的作用是将请求分发到不同的处理器。从Spring 2.
 </servlet-mapping>
 ```
 
-- 根据web.xml文件中的 <param-value>classpath:springmvc-servlet.xml</param-value> ，创建同名的spring配置文件
+- 根据web.xml文件中的 \<param-value>classpath:springmvc-servlet.xml\</param-value> ，创建同名的spring配置文件
   - 在该配置文件中负责三件事：配置HandlerMapping、HandlerAdapter、ResourceViewResolver
   - 同时设置好控制器对应的Controller类，如最后一行
 
@@ -284,7 +284,7 @@ public class HelloController{
 
 ### @RequestMapping
 
-SpringMVC使用@RequestMapping 注解为控制器指定可以处哪些 URL请求，
+SpringMVC使用@RequestMapping 注解为控制器指定可以处哪些URL请求，
 
 也可以说根据URL将数据送到指定的方法上实现。
 
@@ -386,7 +386,7 @@ public class RequestMappingParam {
 
 **@RequestHeader **同理
 
-### 接受参数
+### 数据输入
 
 #### POJO
 
@@ -453,7 +453,144 @@ public class ResultGo {
 }
 ```
 
+### 数据输出
 
+springMVC将数据交给页面的方式：
+
+- 传入Map、Model、ModelMap，给这些参数保存的数据都会放在**Request**域中，能够在页面获取。
+
+  - 无论使用哪三种，最终都是BindingAwareModelMap类在工作
+
+  <img src="./配图/四者关系.png" alt="四者关系" style="zoom:67%;" />
+
+  ```java
+  @RequestMapping("/handler01")
+  public String mapHandler(Map<String,Object> map){
+      map.put("msg","你好");
+      return "success";
+  }
+  
+  @RequestMapping("/handler02")
+  public String modelHandler(Model model){
+      model.addAttribute("msg","你好！");
+      return "success";
+  }
+  
+  
+  @RequestMapping("/handler03")
+  public String modelMapHandler(ModelMap modelMap){
+      modelMap.addAttribute("msg","你好！！");
+      return "success";
+  }
+  ```
+
+- ModelAndView
+
+  - 包含视图信息（页面地址）和模型信息（数据）
+
+  ```Java
+  @RequestMapping("/handler04")
+  public ModelAndView modelAndViewHandler(ModelAndView mv){
+      mv.setViewName("success"); // 设置视图名称
+      mv.addObject("msg","你好！！！"); // 添加数据
+      return mv;
+  }
+  ```
+
+- @SessionAttributes：可以临时给Session域保存数据，只能标注在类上——**别用**
+
+  - value、names：指定保存哪些key的数据在session域中
+    - @SessionAttributes(value = "msg") ：那么在BindingAwareModelMap保存数据到request域的msg时，会保存一份在session域的msg中
+    - 可指定多个key：@SessionAttributes(value = {"msg","haha"}) 
+  - types：指定哪种类型的数据会在session域中
+    - @SessionAttributes(types = {String.class})：只要保存的是string类型的数据，就保存在session域中。
+
+  ```java
+  @SessionAttributes(value = {"msg", "haha"}, types = String.class)
+  @Controller
+  public class OutputController {
+      @RequestMapping("/handler01")
+      public String mapHandler(Map<String, Object> map) {
+          map.put("msg", "你好");
+          map.put("haha", 18);  // 保存的是数据类型，不会存放在session域中
+          return "success";
+      }
+  
+      @RequestMapping("/handler02")
+      public String modelHandler(Model model) {
+          model.addAttribute("msg", "你好！");
+          model.addAttribute("haha", "哈哈");
+          return "success";
+      }
+  }
+  ```
+
+- @ModelAttribute——这个问题可以用Mybatis解决，了解即可。
+
+  - 一个简单的业务场景是：假设需要修改用户的数据，其中用户名是不可以修改的，即有些字段不修改。那么从页面提交过来的数据有点字段就会为null。为了简单，一般直接在controller直接添加用户对象，没有修改的值就会是null，如果调用一个全字段更新的操作，就会**出错**。
+    - 解决方法：不让springMVC创建用户对象，而是从数据库中取出一个需要修改的用户对象，然后将取出来的对象的值进行覆盖（请求参数带了哪些字段的值就覆盖哪些字段，不带就不会覆盖），进行保存。
+    - 原理：原本从页面中传递过来的数据，springMVC会自动的new一个新对象，并把数据赋给每一个成员变量。而@ModelAttribute则是先在数据库中选取一个对象，再将页面数据覆盖给该对象对应的成员。最后才将覆盖了新数据的对象传递给handler方法。
+  - @ModelAttribute修饰方法：这个方法会在URL目标方法前先运行。
+
+- 保存数据到隐含模型的方法：
+
+  1. 使用model.addAttribute保存（主要的，因为可以传多个值）
+  2. 返回对应数据的类：如employee类，默认的key值是类名首字母小写，想自己设置key值——@ModelAttribute("haha")
+
+  ```java
+  @ModelAttribute
+  public void getEmployee(@RequestParam(value = "id", required = false) Integer id, Model model) {
+      if (id != null) {
+          // 先将页面的数据保存到“employee”中
+          model.addAttribute("employee", employeeDao.get(id));
+      }
+  }
+  
+  @RequestMapping(value = "/emp", method = RequestMethod.PUT)
+  // 再执行目标方法，显示数据
+  public String update(@ModelAttribute("employee") Employee employee) {
+      employeeDao.save(employee);
+      return "redirect:/emps";
+  }
+  ```
+
+#### 小结
+
+无论是Map、Model还是ModelMap，都是将一次请求中的所有**键值对**存放到一个叫BindingAwareModelMap的类中，只要再该类中保存了数据，那么直到本次请求结束前都能使用里面的键值对。**BindingAwareModelMap**称为隐含模型。
+
+<img src="./配图/ModelAttribute.png" alt="ModelAttribute" style="zoom:67%;" />
+
+### 视图解析
+
+请求处理方法执行完成后，最终返回一个 ModelAndView 对象。
+
+对于那些返回 String，View 或 ModeMap 等类型的处理方法，**Spring MVC** **也会在内部将它们装配成一个 ModelAndView** **对象**，它包含了逻辑名和模型对象的视图
+
+Spring MVC 借助**视图解析器**（**ViewResolver**）得到最终的视图对象（View），最终的视图可以是 JSP ，也可能是 Excel、JFreeChart等各种表现形式的视图
+
+<img src="./配图/视图解析器.png" style="zoom:67%;" />
+
+#### 视图
+
+**视图**的作用是渲染模型数据，将模型里的数据以某种形式呈现给客户。
+
+为了实现视图模型和具体实现技术的解耦，Spring 在 org.springframework.web.servlet 包中定义了一个高度抽象的 **View** 接口：
+
+![](./配图/view接口.png)
+
+
+
+#### 视图解析器
+
+springMVC 为逻辑视图名的解析提供了不同的策略，可以在 Spring WEB 上下文中**配置一种或多种解析策略**，**并指定他们之间的先后顺序**。每一种映射策略对应一个具体的视图解析器实现类。
+
+视图解析器的作用比较单一：将逻辑视图解析为一个具体的视图对象。
+
+所有的视图解析器都必须实现 ViewResolver接口：
+
+![](./配图/viewResolve接口.png)
+
+debug操作
 
 ### RestFul风格
 

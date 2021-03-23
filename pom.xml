@@ -14,6 +14,7 @@
         <module>03-annotation</module>
         <module>04-RequestMapping</module>
         <module>05-RestFul_CRUD</module>
+        <module>05-Output</module>
     </modules>
 
     <dependencies>
