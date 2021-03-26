@@ -831,3 +831,97 @@ HTTP状态 400 - 错误的请求
 
   
 
+### 支持Ajax
+
+**AJAX = Asynchronous JavaScript and XML（异步的 JavaScript 和 XML）。**
+
+AJAX 是一种在**无需重新加载整个网页**的情况下，能够更新部分网页的技术。
+
+**Ajax 不是一种新的编程语言，而是一种用于创建更好更快以及交互性更强的Web应用程序的技术。**
+
+Google Suggest 使用 AJAX 创造出动态性极强的 web 界面：当您在谷歌的搜索框输入关键字时，JavaScript 会把这些字符发送到服务器，然后服务器会返回一个搜索建议的列表。
+
+传统的网页(即不用ajax技术的网页)，想要更新内容或者提交一个表单，都需要重新加载整个网页。
+
+使用ajax技术的网页，通过在后台服务器进行少量的数据交换，就可以实现异步局部更新。
+
+使用Ajax，用户可以创建接近本地桌面应用的直接、高可用、更丰富、更动态的Web用户界面。
+
+#### 用Ajax实现登录验证
+
+对于Ajax的实现可以使用jQuery中的jQuery.ajax()，jQuery Ajax对原生实现Ajax进行了封装，比较简便。
+
+实现：在文本框输入文字之后，就通过Ajax去后台进行判定是否是某个用户名，返回结果显示在页面上
+
+一、前端页面
+
+1. input中绑定失去焦点事件
+
+```html
+<body>
+<p>
+    用户名:<input type="text" id="name" onblur="a1()"/>
+</p>
+<p>
+    <span id="result"></span>
+</p>
+```
+
+2. 函数事件
+
+```html
+// 引入jQuery
+<script src="webjars/jquery/3.6.0/jquery.min.js"></script>
+<script>
+    function a1() {
+        $.ajax({
+            url: "${pageContext.request.contextPath}/t3",
+            data: {"username": $("#name").val()},
+            success: function (data) {
+                if (data.toString() == 'OK') {
+                    $("#result").css("color", "green");
+                } else {
+                    $("#result").css("color", "red");
+                }
+                $("#result").html(data);
+            }
+        })
+    }
+</script>
+```
+
+**参数说明**：
+
+- url：请求地址，要与后台的@RequestMapping匹配
+- data：传给后台的数据——键值对{ key : value }，
+  - key的值要与后台的方法形参名一致，value就是页面的数据。
+-  success：成功之后执行的函数，这其中的data就是后台方法return的东西。
+- error：失败执行的函数
+
+二、后台处理数据方法
+
+```Java
+@RestController
+public class ajaxController {
+    @RequestMapping("/t3")
+    // 前端的代码 —— data: {"username": $("#name").val()},
+    public String login(String username) {
+        String msg = "";
+        if (username.equals("admin")) {
+            msg = "OK";
+        } else {
+            msg = "用户名错误";
+        }
+        return msg;
+    }
+}
+```
+
+主要流程
+
+- 导包
+  - jackson-databind
+  - jackson-core
+  - jackson-annotations
+- 写配置
+- 测试
